@@ -12,8 +12,12 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
 import { LogOut, Settings, User } from "lucide-react"
+import { signOut } from "next-auth/react";
 
 export function UserAccountNav() {
+  const handleLogout = () => {
+    signOut({ callbackUrl: "/" });  // Redirect to home page after logout
+  };
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
@@ -45,7 +49,7 @@ export function UserAccountNav() {
         <DropdownMenuSeparator />
         <DropdownMenuItem>
           <LogOut className="mr-2 h-4 w-4" />
-          <span>Log out</span>
+          <span onClick = {handleLogout}>Log out</span>
         </DropdownMenuItem>
       </DropdownMenuContent>
     </DropdownMenu>

@@ -1,8 +1,12 @@
+'use client'
+
 import Link from "next/link"
 import { Button } from "@/components/ui/button"
 import { ArrowRight, CheckCircle2 } from "lucide-react"
+import { signIn } from "next-auth/react";
 
 export default function LandingPage() {
+  
   return (
     <div className="flex min-h-screen flex-col">
       <header className="sticky top-0 z-40 w-full border-b bg-background">
@@ -11,11 +15,8 @@ export default function LandingPage() {
             <span className="font-bold text-xl text-primary">Polish</span>
           </div>
           <nav className="flex items-center space-x-4">
-            <Link href="/login" className="text-sm font-medium text-muted-foreground hover:text-foreground">
+            <Button onClick = {() => signIn("google", { callbackUrl: "/dashboard" })} className="text-sm font-medium text-foreground hover:text-muted-foreground">
               Log in
-            </Link>
-            <Button asChild>
-              <Link href="/register">Sign up</Link>
             </Button>
           </nav>
         </div>
@@ -35,14 +36,14 @@ export default function LandingPage() {
                   </p>
                 </div>
                 <div className="flex flex-col gap-2 min-[400px]:flex-row">
-                  <Button asChild size="lg">
-                    <Link href="/register">
+                  <Button asChild size="lg" onClick = {() => signIn("google", { callbackUrl: "/dashboard" })}>
+                    <span>
                       Get Started
                       <ArrowRight className="ml-2 h-4 w-4" />
-                    </Link>
+                    </span>
                   </Button>
-                  <Button variant="outline" size="lg" asChild>
-                    <Link href="/examples">View Example Essays</Link>
+                  <Button variant="outline" size="lg" asChild onClick = {() => signIn("google", { callbackUrl: "/examples" })}>
+                    <span>View Example Essays</span>
                   </Button>
                 </div>
               </div>

@@ -25,3 +25,5 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+seraphic-amp-445400-b1-firebase-adminsdk-fbsvc-7c0b048713.json
