@@ -19,6 +19,8 @@ export default function LandingPage() {
 
   const signIn = async (garb:any,{callbackUrl}:any) => {
     const provider = new GoogleAuthProvider();
+    console.log(callbackUrl);
+    
     
     try {
       // Sign in with popup
