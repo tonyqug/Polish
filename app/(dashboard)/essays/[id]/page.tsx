@@ -48,7 +48,7 @@ export default function EssayPage({ params }: { params: { id: string } }) {
               <span className="text-sm text-muted-foreground">Last updated: {essay.lastUpdated}</span>
             </div>
           </div>
-          <div className="flex gap-2">
+          {/* <div className="flex gap-2">
             <Button variant="outline" size="sm">
               <Download className="mr-2 h-4 w-4" />
               Export
@@ -57,7 +57,7 @@ export default function EssayPage({ params }: { params: { id: string } }) {
               <MessageSquare className="mr-2 h-4 w-4" />
               Ask AI
             </Button>
-          </div>
+          </div> */}
         </div>
 
         {essay.prompt && (
@@ -72,10 +72,10 @@ export default function EssayPage({ params }: { params: { id: string } }) {
         )}
 
         <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-          <TabsList className="grid w-full grid-cols-3">
+          <TabsList className="grid w-full grid-cols-2">
             <TabsTrigger value="feedback">Feedback</TabsTrigger>
             <TabsTrigger value="report">Report</TabsTrigger>
-            <TabsTrigger value="chat">AI Chat</TabsTrigger>
+            {/* <TabsTrigger value="chat">AI Chat</TabsTrigger> */}
           </TabsList>
           <TabsContent value="feedback" className="mt-6">
             <FeedbackView essay={essay} />
@@ -83,9 +83,9 @@ export default function EssayPage({ params }: { params: { id: string } }) {
           <TabsContent value="report" className="mt-6">
             <FeedbackReport essayId={essay.id} />
           </TabsContent>
-          <TabsContent value="chat" className="mt-6">
+          {/* <TabsContent value="chat" className="mt-6">
             <ChatInterface essayId={essay.id} />
-          </TabsContent>
+          </TabsContent> */}
         </Tabs>
       </div>
     </div>

@@ -12,11 +12,30 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
 import { LogOut, Settings, User } from "lucide-react"
-import { signOut } from "next-auth/react";
+import { signOut as signOut2} from "next-auth/react";
+import { getAuth, signOut } from "firebase/auth";
+import { useRouter } from "next/navigation";  // Importing useRouter from Next.js
+import {useEffect, useState} from 'react'
+import { useAuth } from "@/components/auth-provider";
+import Link from "next/link"
 
 export function UserAccountNav() {
-  const handleLogout = () => {
-    signOut({ callbackUrl: "/" });  // Redirect to home page after logout
+  const auth = getAuth();
+  const router = useRouter();
+  const { user, setUser } = useAuth();
+  const handleSignOut = async () => {
+    console.log("logging out")
+    try {
+      // Sign out the user
+      await signOut2({callbackUrl: '/'});
+      await signOut(auth);
+      console.log("User signed out!");
+
+      // Redirect to the homepage or another page after sign-out
+      router.push("/");
+    } catch (error) {
+      console.error("Error during sign-out:", error);
+    }
   };
   return (
     <DropdownMenu>
@@ -31,25 +50,27 @@ export function UserAccountNav() {
       <DropdownMenuContent className="w-56" align="end" forceMount>
         <DropdownMenuLabel className="font-normal">
           <div className="flex flex-col space-y-1">
-            <p className="text-sm font-medium leading-none">Sarah Chen</p>
-            <p className="text-xs leading-none text-muted-foreground">sarah.chen@example.com</p>
+            <p className="text-sm font-medium leading-none">{user?.firstName } {user?.lastName}</p>
+            <p className="text-xs leading-none text-muted-foreground">{user?.email}</p>
           </div>
         </DropdownMenuLabel>
         <DropdownMenuSeparator />
         <DropdownMenuGroup>
-          <DropdownMenuItem>
+          {/* <DropdownMenuItem>
             <User className="mr-2 h-4 w-4" />
             <span>Profile</span>
-          </DropdownMenuItem>
-          <DropdownMenuItem>
-            <Settings className="mr-2 h-4 w-4" />
-            <span>Settings</span>
+          </DropdownMenuItem> */}
+          <DropdownMenuItem onClick = {() => {router.push("/settings")}} >
+          <div className = "flex flex-row">
+              <Settings className="mr-2 h-4 w-4" />
+              Settings
+          </div>
           </DropdownMenuItem>
         </DropdownMenuGroup>
         <DropdownMenuSeparator />
         <DropdownMenuItem>
           <LogOut className="mr-2 h-4 w-4" />
-          <span onClick = {handleLogout}>Log out</span>
+          <span onClick = {handleSignOut}>Log out</span>
         </DropdownMenuItem>
       </DropdownMenuContent>
     </DropdownMenu>

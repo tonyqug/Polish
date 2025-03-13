@@ -1,4 +1,4 @@
-"use client"
+"use client";
 
 import { createContext, useContext, useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
@@ -6,7 +6,8 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Separator } from "@/components/ui/separator";
 import { useToast } from "@/hooks/use-toast";
-import {useAuth} from "@/components/auth-provider"
+import { useAuth } from "@/components/auth-provider";
+import { getAuth } from "firebase/auth";
 
 export default function SettingsPage() {
   const { toast } = useToast();
@@ -20,6 +21,8 @@ export default function SettingsPage() {
     bio: ""
   });
 
+  const [loading, setLoading] = useState(true); // Loading state
+
   useEffect(() => {
     if (user) {
       setFormData({
@@ -29,6 +32,7 @@ export default function SettingsPage() {
         school: user.school || "",
         bio: user.bio || ""
       });
+      setLoading(false); // Set loading to false once user data is loaded
     }
   }, [user]);
 
@@ -36,13 +40,21 @@ export default function SettingsPage() {
     setFormData({ ...formData, [e.target.id]: e.target.value });
   };
 
+  const auth = getAuth(); // Get the Firebase auth instance
+
   const handleProfileUpdate = async (e: any) => {
     e.preventDefault();
     setIsUpdating(true);
+    
+    const user = auth.currentUser; // Get the current authenticated user
 
+    const token = await user?.getIdToken();
     const res = await fetch("/api/user/save-user", {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: { 
+        Authorization: `Bearer ${token}`,
+        "Content-Type": "application/json"
+      },
       body: JSON.stringify(formData)
     });
 
@@ -56,6 +68,19 @@ export default function SettingsPage() {
     setIsUpdating(false);
   };
 
+  if (loading) {
+    return (
+      <div className="flex flex-col justify-center items-center min-h-screen">
+        <div className="flex flex-col items-center">
+          <div
+            className="w-16 h-16 border-4 border-t-4 border-gray-300 rounded-full animate-spin"
+            style={{ borderTopColor: "#fff" }}
+          ></div>
+          <p className="mt-4 text-xl font-bold text-white">Loading...</p>
+        </div>
+      </div>
+    );
+  }
   return (
     <div className="container py-10">
       <div className="mx-auto max-w-4xl">
@@ -69,7 +94,7 @@ export default function SettingsPage() {
               </div>
             ))}
           </div>
-          <Button type="submit" disabled={isUpdating}>{isUpdating ? "Updating..." : "Update profile"}</Button>
+          <Button type="submit" disabled={isUpdating || loading}>{isUpdating ? "Updating..." : "Update profile"}</Button>
         </form>
       </div>
     </div>

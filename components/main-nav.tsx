@@ -31,12 +31,12 @@ export function MainNav({ className }: MainNavProps) {
       icon: BookOpen,
       active: pathname === "/examples",
     },
-    {
-      href: "/chat",
-      label: "AI Chat",
-      icon: MessageSquare,
-      active: pathname === "/chat",
-    },
+    // {
+    //   href: "/chat",
+    //   label: "AI Chat",
+    //   icon: MessageSquare,
+    //   active: pathname === "/chat",
+    // },
     {
       href: "/settings",
       label: "Settings",

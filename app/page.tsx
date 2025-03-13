@@ -3,10 +3,34 @@
 import Link from "next/link"
 import { Button } from "@/components/ui/button"
 import { ArrowRight, CheckCircle2 } from "lucide-react"
-import { signIn } from "next-auth/react";
+import { getAuth, GoogleAuthProvider, signInWithPopup, signOut } from "firebase/auth";
+import { useRouter } from "next/navigation";  // Importing useRouter from Next.js
+import {useState, useEffect} from 'react'
+
+
 
 export default function LandingPage() {
+  const auth = getAuth();
+  const router = useRouter();  // Call useRouter directly
+
+  useEffect(() => {
+
+  }, []);
+
+  const signIn = async (garb:any,{callbackUrl}:any) => {
+    const provider = new GoogleAuthProvider();
+    
+    try {
+      // Sign in with popup
+      await signInWithPopup(auth, provider);
+      console.log("User signed in!");
   
+      // Redirect to '/examples' after successful sign-in
+      router.push(callbackUrl);
+    } catch (error) {
+      console.error("Error during sign-in:", error);
+    }
+  };
   return (
     <div className="flex min-h-screen flex-col">
       <header className="sticky top-0 z-40 w-full border-b bg-background">
