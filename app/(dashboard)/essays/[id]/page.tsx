@@ -1,31 +1,106 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
+import { useSession } from "next-auth/react"
 import Link from "next/link"
 import { Button } from "@/components/ui/button"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
-import { ArrowLeft, Download, MessageSquare } from "lucide-react"
+import { ArrowLeft } from "lucide-react"
 import { FeedbackView } from "@/components/feedback-view"
 import { FeedbackReport } from "@/components/feedback-report"
-import { ChatInterface } from "@/components/chat-interface"
+import { Skeleton } from "@/components/ui/skeleton"
+
+interface Essay {
+  id: string
+  title: string
+  type: string
+  prompt: string
+  content: string
+  lastUpdated: string
+  status: string
+}
 
 export default function EssayPage({ params }: { params: { id: string } }) {
+  const { data: session } = useSession()
   const [activeTab, setActiveTab] = useState("feedback")
+  const [essay, setEssay] = useState<Essay | null>(null)
+  const [isLoading, setIsLoading] = useState(true)
 
-  // This would come from an API in a real application
-  const essay = {
-    id: params.id,
-    title: "Why Stanford?",
-    type: "Why This School",
-    prompt: "Please write a statement describing why you are interested in attending Stanford University.",
-    content: `<p>Stanford University has been my dream school since I first learned about its pioneering research and innovative spirit. The university's commitment to interdisciplinary education perfectly aligns with my academic goals.</p>
-    <p>As someone passionate about both computer science and environmental sustainability, Stanford's Earth Systems Program and Computer Science department offer the ideal combination for me to pursue my interests. The opportunity to work with faculty who are leading experts in artificial intelligence and climate modeling would be invaluable to my growth as a researcher and innovator.</p>
-    <p>Beyond academics, Stanford's vibrant campus culture and diverse student body would provide me with countless opportunities to expand my horizons. The entrepreneurial ecosystem, from StartX to the d.school, would nurture my passion for creating technology solutions that address real-world problems.</p>
-    <p>I'm particularly drawn to Stanford's commitment to using knowledge in service of humanity. This philosophy resonates deeply with me, as I hope to leverage my education to develop sustainable technologies that can help communities adapt to climate change.</p>`,
-    lastUpdated: "2 days ago",
-    status: "Feedback Ready",
+  useEffect(() => {
+    async function fetchEssay() {
+      if (!session?.user?.email) return;
+
+      try {
+        const response = await fetch(`/api/essays/${params.id}?email=${encodeURIComponent(session.user.email)}`);
+        if (!response.ok) {
+          throw new Error('Failed to fetch essay');
+        }
+        const data = await response.json();
+        setEssay(data);
+      } catch (error) {
+        console.error('Error fetching essay:', error);
+      } finally {
+        setIsLoading(false);
+      }
+    }
+
+    fetchEssay();
+  }, [params.id, session?.user?.email]);
+
+  if (isLoading) {
+    return (
+      <div className="container py-10">
+        <div className="mb-6">
+          <Button variant="ghost" size="sm" asChild>
+            <Link href="/essays">
+              <ArrowLeft className="mr-2 h-4 w-4" />
+              Back to Essays
+            </Link>
+          </Button>
+        </div>
+
+        <div className="flex flex-col gap-6">
+          <div>
+            <Skeleton className="h-8 w-64" />
+            <div className="mt-2 flex items-center gap-2">
+              <Skeleton className="h-5 w-24" />
+              <Skeleton className="h-5 w-32" />
+            </div>
+          </div>
+
+          <Card>
+            <CardHeader>
+              <Skeleton className="h-6 w-32" />
+            </CardHeader>
+            <CardContent>
+              <Skeleton className="h-16 w-full" />
+            </CardContent>
+          </Card>
+
+          <div className="space-y-6">
+            <Skeleton className="h-[400px] w-full" />
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  if (!essay) {
+    return (
+      <div className="container py-10">
+        <div className="text-center">
+          <h1 className="text-2xl font-bold">Essay not found</h1>
+          <p className="mt-2 text-muted-foreground">
+            The essay you're looking for doesn't exist or you don't have permission to view it.
+          </p>
+          <Button asChild className="mt-4">
+            <Link href="/essays">Back to Essays</Link>
+          </Button>
+        </div>
+      </div>
+    );
   }
 
   return (
@@ -48,16 +123,6 @@ export default function EssayPage({ params }: { params: { id: string } }) {
               <span className="text-sm text-muted-foreground">Last updated: {essay.lastUpdated}</span>
             </div>
           </div>
-          {/* <div className="flex gap-2">
-            <Button variant="outline" size="sm">
-              <Download className="mr-2 h-4 w-4" />
-              Export
-            </Button>
-            <Button size="sm" onClick={() => setActiveTab("chat")}>
-              <MessageSquare className="mr-2 h-4 w-4" />
-              Ask AI
-            </Button>
-          </div> */}
         </div>
 
         {essay.prompt && (
@@ -75,17 +140,13 @@ export default function EssayPage({ params }: { params: { id: string } }) {
           <TabsList className="grid w-full grid-cols-2">
             <TabsTrigger value="feedback">Feedback</TabsTrigger>
             <TabsTrigger value="report">Report</TabsTrigger>
-            {/* <TabsTrigger value="chat">AI Chat</TabsTrigger> */}
           </TabsList>
           <TabsContent value="feedback" className="mt-6">
             <FeedbackView essay={essay} />
           </TabsContent>
           <TabsContent value="report" className="mt-6">
-            <FeedbackReport essayId={essay.id} />
+            <FeedbackReport essayId={essay.id} essay={essay} />
           </TabsContent>
-          {/* <TabsContent value="chat" className="mt-6">
-            <ChatInterface essayId={essay.id} />
-          </TabsContent> */}
         </Tabs>
       </div>
     </div>

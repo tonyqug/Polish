@@ -1,92 +1,100 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { Card, CardContent } from "@/components/ui/card"
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
 import { Info } from "lucide-react"
+import { Skeleton } from "@/components/ui/skeleton"
 
 interface FeedbackViewProps {
   essay: {
     id: string
     title: string
     content: string
+    prompt: string
   }
 }
 
-export function FeedbackView({ essay }: FeedbackViewProps) {
-  // This would come from an API in a real application
-  const feedback = [
-    {
-      id: "1",
-      text: "Stanford University has been my dream school since I first learned about its pioneering research and innovative spirit.",
-      feedback:
-        "Strong opening that shows enthusiasm, but consider being more specific about what pioneering research caught your attention.",
-      strength: 2,
-    },
-    {
-      id: "2",
-      text: "The university's commitment to interdisciplinary education perfectly aligns with my academic goals.",
-      feedback:
-        "This is a generic statement that could apply to many schools. Try to be more specific about Stanford's unique interdisciplinary programs.",
-      strength: 3,
-    },
-    {
-      id: "3",
-      text: "As someone passionate about both computer science and environmental sustainability, Stanford's Earth Systems Program and Computer Science department offer the ideal combination for me to pursue my interests.",
-      feedback:
-        "Excellent specific connection between your interests and Stanford's specific programs. This shows you've done your research.",
-      strength: 1,
-    },
-    {
-      id: "4",
-      text: "The opportunity to work with faculty who are leading experts in artificial intelligence and climate modeling would be invaluable to my growth as a researcher and innovator.",
-      feedback:
-        "Good mention of faculty expertise, but consider naming specific professors whose work interests you to show deeper research.",
-      strength: 2,
-    },
-    {
-      id: "5",
-      text: "Beyond academics, Stanford's vibrant campus culture and diverse student body would provide me with countless opportunities to expand my horizons.",
-      feedback: "This is somewhat generic. Consider mentioning specific aspects of campus culture that appeal to you.",
-      strength: 3,
-    },
-    {
-      id: "6",
-      text: "The entrepreneurial ecosystem, from StartX to the d.school, would nurture my passion for creating technology solutions that address real-world problems.",
-      feedback:
-        "Excellent specific mention of Stanford's entrepreneurial resources. This shows you understand what makes Stanford unique.",
-      strength: 1,
-    },
-    {
-      id: "7",
-      text: "I'm particularly drawn to Stanford's commitment to using knowledge in service of humanity. This philosophy resonates deeply with me, as I hope to leverage my education to develop sustainable technologies that can help communities adapt to climate change.",
-      feedback:
-        "Strong conclusion that ties your personal goals to Stanford's mission. Consider adding a specific example of how you've already begun this work.",
-      strength: 2,
-    },
-  ]
+interface Feedback {
+  text: string
+  comment: string
+  type: "strength" | "improvement" | "suggestion"
+  startIndex: number
+  endIndex: number
+}
 
-  const [selectedFeedback, setSelectedFeedback] = useState<string | null>(null)
+export function FeedbackView({ essay }: FeedbackViewProps) {
+  const [feedback, setFeedback] = useState<Feedback[]>([])
+  const [selectedFeedback, setSelectedFeedback] = useState<Feedback | null>(null)
+  const [isLoading, setIsLoading] = useState(true)
+
+  useEffect(() => {
+    async function getFeedback() {
+      try {
+        const response = await fetch(`/api/ai/essays/${essay.id}/feedback`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            content: essay.content,
+            prompt: essay.prompt,
+          }),
+        });
+
+        if (!response.ok) {
+          throw new Error('Failed to fetch feedback');
+        }
+
+        const data = await response.json();
+        setFeedback(data.highlights);
+      } catch (error) {
+        console.error('Error fetching feedback:', error);
+      } finally {
+        setIsLoading(false);
+      }
+    }
+
+    getFeedback();
+  }, [essay.id, essay.content, essay.prompt]);
 
   // Parse the HTML content and inject the feedback highlights
   const contentWithHighlights = () => {
-    let content = essay.content
+    if (isLoading) return essay.content;
 
-    // Replace paragraphs with highlighted versions based on feedback
+    let content = essay.content;
     feedback.forEach((item) => {
-      const escapedText = item.text.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")
-      const regex = new RegExp(`(${escapedText})`, "g")
+      const textToHighlight = content.slice(item.startIndex, item.endIndex);
+      const escapedText = textToHighlight.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+      const regex = new RegExp(`(${escapedText})`, "g");
       content = content.replace(
         regex,
         `<span 
-          class="highlight-strength highlight-strength-${item.strength}" 
-          data-feedback-id="${item.id}"
-          ${selectedFeedback === item.id ? 'style="background-color: var(--primary); color: var(--primary-foreground);"' : ""}
-        >$1</span>`,
-      )
-    })
+          class="highlight-${item.type}" 
+          data-feedback-index="${item.startIndex}"
+          ${selectedFeedback?.startIndex === item.startIndex ? 'style="background-color: var(--primary); color: var(--primary-foreground);"' : ""}
+        >$1</span>`
+      );
+    });
 
-    return content
+    return content;
+  };
+
+  if (isLoading) {
+    return (
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <Card>
+          <CardContent className="p-6">
+            <Skeleton className="h-[300px] w-full" />
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent className="p-6">
+            <Skeleton className="h-[300px] w-full" />
+          </CardContent>
+        </Card>
+      </div>
+    );
   }
 
   return (
@@ -99,10 +107,12 @@ export function FeedbackView({ essay }: FeedbackViewProps) {
               __html: contentWithHighlights(),
             }}
             onClick={(e) => {
-              const target = e.target as HTMLElement
-              const feedbackId = target.getAttribute("data-feedback-id")
-              if (feedbackId) {
-                setSelectedFeedback(feedbackId === selectedFeedback ? null : feedbackId)
+              const target = e.target as HTMLElement;
+              const feedbackIndex = target.getAttribute("data-feedback-index");
+              if (feedbackIndex) {
+                const index = parseInt(feedbackIndex);
+                const feedbackItem = feedback.find(f => f.startIndex === index);
+                setSelectedFeedback(selectedFeedback?.startIndex === index ? null : feedbackItem || null);
               }
             }}
           />
@@ -120,8 +130,8 @@ export function FeedbackView({ essay }: FeedbackViewProps) {
                 </TooltipTrigger>
                 <TooltipContent>
                   <p className="max-w-xs">
-                    Click on highlighted text in your essay to see specific feedback. Green = Strong, Yellow = Needs
-                    improvement, Red = Needs significant revision.
+                    Click on highlighted text in your essay to see specific feedback. Green = Strength, Yellow = Needs
+                    improvement, Orange = Suggestion for enhancement.
                   </p>
                 </TooltipContent>
               </Tooltip>
@@ -131,9 +141,9 @@ export function FeedbackView({ essay }: FeedbackViewProps) {
           <div className="space-y-4">
             {selectedFeedback ? (
               <div className="rounded-lg border p-4">
-                <p className="text-sm font-medium">{feedback.find((f) => f.id === selectedFeedback)?.text}</p>
+                <p className="text-sm font-medium">{selectedFeedback.text}</p>
                 <p className="mt-2 text-sm text-muted-foreground">
-                  {feedback.find((f) => f.id === selectedFeedback)?.feedback}
+                  {selectedFeedback.comment}
                 </p>
               </div>
             ) : (
@@ -147,15 +157,15 @@ export function FeedbackView({ essay }: FeedbackViewProps) {
               <div className="space-y-2 text-sm">
                 <div className="flex items-center gap-2">
                   <div className="h-3 w-3 rounded-full bg-green-100 dark:bg-green-950/30"></div>
-                  <span>Strong point</span>
+                  <span>Strength</span>
                 </div>
                 <div className="flex items-center gap-2">
                   <div className="h-3 w-3 rounded-full bg-yellow-100 dark:bg-yellow-950/30"></div>
                   <span>Needs improvement</span>
                 </div>
                 <div className="flex items-center gap-2">
-                  <div className="h-3 w-3 rounded-full bg-red-100 dark:bg-red-950/30"></div>
-                  <span>Needs significant revision</span>
+                  <div className="h-3 w-3 rounded-full bg-orange-100 dark:bg-orange-950/30"></div>
+                  <span>Suggestion</span>
                 </div>
               </div>
             </div>

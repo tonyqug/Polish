@@ -27,7 +27,7 @@ export function UserAccountNav() {
     console.log("logging out")
     try {
       // Sign out the user
-      await signOut2({callbackUrl: '/'});
+      // await signOut2({callbackUrl: '/'});
       await signOut(auth);
       console.log("User signed out!");
 
@@ -68,9 +68,9 @@ export function UserAccountNav() {
           </DropdownMenuItem>
         </DropdownMenuGroup>
         <DropdownMenuSeparator />
-        <DropdownMenuItem>
+        <DropdownMenuItem onClick = {handleSignOut}>
           <LogOut className="mr-2 h-4 w-4" />
-          <span onClick = {handleSignOut}>Log out</span>
+          <span>Log out</span>
         </DropdownMenuItem>
       </DropdownMenuContent>
     </DropdownMenu>

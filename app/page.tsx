@@ -5,7 +5,6 @@ import { Button } from "@/components/ui/button"
 import { ArrowRight, CheckCircle2 } from "lucide-react"
 import { getAuth, GoogleAuthProvider, signInWithPopup, signOut } from "firebase/auth";
 import { useRouter } from "next/navigation";  // Importing useRouter from Next.js
-import {useState, useEffect} from 'react'
 
 
 
@@ -13,26 +12,23 @@ export default function LandingPage() {
   const auth = getAuth();
   const router = useRouter();  // Call useRouter directly
 
-  useEffect(() => {
-
-  }, []);
-
-  const signIn = async (garb:any,{callbackUrl}:any) => {
-    const provider = new GoogleAuthProvider();
-    console.log(callbackUrl);
-    
-    
+  const handleSignIn = async ({callbackUrl = "/dashboard"}:any) => {
+   
     try {
-      // Sign in with popup
+      const provider = new GoogleAuthProvider();
+      console.log(callbackUrl);
+      
+        // Sign in with popup
       await signInWithPopup(auth, provider);
       console.log("User signed in!");
   
       // Redirect to '/examples' after successful sign-in
       router.push(callbackUrl);
     } catch (error) {
-      console.error("Error during sign-in:", error);
+      console.error('Error during sign in:', error);
     }
   };
+
   return (
     <div className="flex min-h-screen flex-col">
       <header className="sticky top-0 z-40 w-full border-b bg-background">
@@ -41,7 +37,7 @@ export default function LandingPage() {
             <span className="font-bold text-xl text-primary">Polish</span>
           </div>
           <nav className="flex items-center space-x-4">
-            <Button onClick = {() => signIn("google", { callbackUrl: "/dashboard" })} className="text-sm font-medium text-foreground hover:text-muted-foreground">
+            <Button onClick={handleSignIn} className="text-sm font-medium text-foreground hover:text-muted-foreground">
               Log in
             </Button>
           </nav>
@@ -62,13 +58,13 @@ export default function LandingPage() {
                   </p>
                 </div>
                 <div className="flex flex-col gap-2 min-[400px]:flex-row">
-                  <Button asChild size="lg" onClick = {() => signIn("google", { callbackUrl: "/dashboard" })}>
-                    <span>
+                  <Button size="lg" onClick={handleSignIn}>
+                    <span className = "flex flex-row">
                       Get Started
                       <ArrowRight className="ml-2 h-4 w-4" />
                     </span>
                   </Button>
-                  <Button variant="outline" size="lg" asChild onClick = {() => signIn("google", { callbackUrl: "/examples" })}>
+                  <Button variant="outline" size="lg" asChild onClick={() => {handleSignIn({callbackUrl: "/examples"})}}>
                     <span>View Example Essays</span>
                   </Button>
                 </div>

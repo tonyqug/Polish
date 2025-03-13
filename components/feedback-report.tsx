@@ -1,51 +1,139 @@
 "use client"
 
+import { useState, useEffect } from "react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Radar, RadarChart, PolarGrid, PolarAngleAxis, PolarRadiusAxis, ResponsiveContainer } from "recharts"
 import { ChartContainer } from "@/components/ui/chart"
+import { Skeleton } from "@/components/ui/skeleton"
 
 interface FeedbackReportProps {
   essayId: string
+  essay: {
+    content: string
+    prompt: string
+  }
 }
 
-export function FeedbackReport({ essayId }: FeedbackReportProps) {
-  // This would come from an API in a real application
-  const reportData = {
-    scores: [
-      { category: "Clarity", score: 80, fullMark: 100 },
-      { category: "Structure", score: 65, fullMark: 100 },
-      { category: "Originality", score: 90, fullMark: 100 },
-      { category: "Relevance", score: 75, fullMark: 100 },
-      { category: "Specificity", score: 60, fullMark: 100 },
-    ],
-    strengths: [
-      "Strong personal voice and authentic enthusiasm",
-      "Good connection between personal interests and specific Stanford programs",
-      "Effective mention of Stanford's entrepreneurial resources",
-    ],
-    improvements: [
-      "Be more specific about which pioneering research caught your attention",
-      "Avoid generic statements about campus culture",
-      "Name specific professors whose work interests you",
-      "Add a concrete example of how you've already begun work related to your goals",
-    ],
-    similarExamples: [
-      {
-        id: "ex1",
-        title: "Stanford Essay Example #1",
-        excerpt:
-          "The interdisciplinary nature of Stanford's Symbolic Systems program perfectly aligns with my interest in the intersection of cognitive science and artificial intelligence...",
-        similarity: "High",
-      },
-      {
-        id: "ex2",
-        title: "Stanford Essay Example #2",
-        excerpt:
-          "Professor Smith's groundbreaking research on climate modeling at Stanford's Earth Systems Science department would provide me with the mentorship I need to develop my own research on sustainable urban planning...",
-        similarity: "Medium",
-      },
-    ],
+interface Dimension {
+  name: string
+  score: number
+  explanation: string
+}
+
+interface Evaluation {
+  dimensions: Dimension[]
+  overallScore: number
+  overallFeedback: string
+}
+
+interface Theme {
+  theme: string
+  evidence: string
+}
+
+interface Takeaways {
+  mainThemes: Theme[]
+  keyQualities: string[]
+  memorableElements: {
+    element: string
+    impact: string
+  }[]
+  summary: string
+}
+
+export function FeedbackReport({ essayId, essay }: FeedbackReportProps) {
+  const [evaluation, setEvaluation] = useState<Evaluation | null>(null)
+  const [takeaways, setTakeaways] = useState<Takeaways | null>(null)
+  const [isLoading, setIsLoading] = useState(true)
+
+  useEffect(() => {
+    async function getReportData() {
+      try {
+        const [evalResponse, takeawaysResponse] = await Promise.all([
+          fetch(`/api/ai/essays/${essayId}/evaluation`, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+              content: essay.content,
+              prompt: essay.prompt,
+            }),
+          }),
+          fetch(`/api/ai/essays/${essayId}/takeaways`, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+              content: essay.content,
+              prompt: essay.prompt,
+            }),
+          })
+        ]);
+
+        if (!evalResponse.ok || !takeawaysResponse.ok) {
+          throw new Error('Failed to fetch report data');
+        }
+
+        const [evalData, takeawaysData] = await Promise.all([
+          evalResponse.json(),
+          takeawaysResponse.json()
+        ]);
+
+        setEvaluation(evalData);
+        setTakeaways(takeawaysData);
+      } catch (error) {
+        console.error('Error fetching report data:', error);
+      } finally {
+        setIsLoading(false);
+      }
+    }
+
+    getReportData();
+  }, [essayId, essay.content, essay.prompt]);
+
+  if (isLoading) {
+    return (
+      <div className="space-y-6">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <Card>
+            <CardHeader>
+              <Skeleton className="h-6 w-32" />
+              <Skeleton className="h-4 w-48" />
+            </CardHeader>
+            <CardContent>
+              <Skeleton className="h-[300px] w-full" />
+            </CardContent>
+          </Card>
+          <Card>
+            <CardHeader>
+              <Skeleton className="h-6 w-32" />
+              <Skeleton className="h-4 w-48" />
+            </CardHeader>
+            <CardContent>
+              <Skeleton className="h-[300px] w-full" />
+            </CardContent>
+          </Card>
+        </div>
+        <Card>
+          <CardHeader>
+            <Skeleton className="h-6 w-32" />
+            <Skeleton className="h-4 w-48" />
+          </CardHeader>
+          <CardContent>
+            <Skeleton className="h-[200px] w-full" />
+          </CardContent>
+        </Card>
+      </div>
+    );
   }
+
+  const chartData = evaluation?.dimensions.map(d => ({
+    category: d.name,
+    score: d.score * 10, // Convert 1-10 to percentage
+    fullMark: 100,
+  })) || [];
 
   return (
     <div className="space-y-6">
@@ -53,7 +141,7 @@ export function FeedbackReport({ essayId }: FeedbackReportProps) {
         <Card>
           <CardHeader>
             <CardTitle>Essay Evaluation</CardTitle>
-            <CardDescription>Analysis of your essay across key dimensions</CardDescription>
+            <CardDescription>Analysis across key dimensions</CardDescription>
           </CardHeader>
           <CardContent>
             <ChartContainer
@@ -70,7 +158,7 @@ export function FeedbackReport({ essayId }: FeedbackReportProps) {
               className="h-[300px]"
             >
               <ResponsiveContainer width="100%" height="100%">
-                <RadarChart cx="50%" cy="50%" outerRadius="80%" data={reportData.scores}>
+                <RadarChart cx="50%" cy="50%" outerRadius="80%" data={chartData}>
                   <PolarGrid />
                   <PolarAngleAxis dataKey="category" />
                   <PolarRadiusAxis angle={30} domain={[0, 100]} />
@@ -97,27 +185,27 @@ export function FeedbackReport({ essayId }: FeedbackReportProps) {
         <Card>
           <CardHeader>
             <CardTitle>Key Takeaways</CardTitle>
-            <CardDescription>Summary of strengths and areas for improvement</CardDescription>
+            <CardDescription>Main themes and qualities</CardDescription>
           </CardHeader>
           <CardContent>
             <div className="space-y-4">
               <div>
-                <h3 className="font-medium text-sm mb-2">Strengths</h3>
+                <h3 className="font-medium text-sm mb-2">Main Themes</h3>
                 <ul className="list-disc pl-5 space-y-1">
-                  {reportData.strengths.map((strength, index) => (
+                  {takeaways?.mainThemes.map((theme, index) => (
                     <li key={index} className="text-sm">
-                      {strength}
+                      <span className="font-medium">{theme.theme}</span>: {theme.evidence}
                     </li>
                   ))}
                 </ul>
               </div>
 
               <div>
-                <h3 className="font-medium text-sm mb-2">Areas for Improvement</h3>
+                <h3 className="font-medium text-sm mb-2">Key Qualities Demonstrated</h3>
                 <ul className="list-disc pl-5 space-y-1">
-                  {reportData.improvements.map((improvement, index) => (
+                  {takeaways?.keyQualities.map((quality, index) => (
                     <li key={index} className="text-sm">
-                      {improvement}
+                      {quality}
                     </li>
                   ))}
                 </ul>
@@ -129,18 +217,17 @@ export function FeedbackReport({ essayId }: FeedbackReportProps) {
 
       <Card>
         <CardHeader>
-          <CardTitle>Similar Exemplar Essays</CardTitle>
-          <CardDescription>Essays with similar themes or approaches that you can learn from</CardDescription>
+          <CardTitle>Memorable Elements</CardTitle>
+          <CardDescription>Standout aspects of your essay</CardDescription>
         </CardHeader>
         <CardContent>
           <div className="space-y-4">
-            {reportData.similarExamples.map((example) => (
-              <div key={example.id} className="rounded-lg border p-4">
-                <div className="flex items-center justify-between mb-2">
-                  <h3 className="font-medium">{example.title}</h3>
-                  <span className="text-xs bg-muted px-2 py-1 rounded-full">{example.similarity} Similarity</span>
+            {takeaways?.memorableElements.map((element, index) => (
+              <div key={index} className="rounded-lg border p-4">
+                <div className="mb-2">
+                  <h3 className="font-medium">{element.element}</h3>
                 </div>
-                <p className="text-sm text-muted-foreground">{example.excerpt}</p>
+                <p className="text-sm text-muted-foreground">{element.impact}</p>
               </div>
             ))}
           </div>
