@@ -82,39 +82,60 @@ export default function NewEssayPage() {
 
       const { essayId } = await createResponse.json();
       
+      // Run all analysis in parallel and store results
       const analysisPromises = [
         fetch(`/api/ai/essays/${essayId}/feedback`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ content, prompt }),
-        }).then(() => setAnalysisProgress((prev) => ({ ...prev, feedback: true }))),
+        })
+          .then(res => res.json())
+          .then(feedback => {
+            setAnalysisProgress((prev) => ({ ...prev, feedback: true }));
+            return feedback;
+          }),
 
         fetch(`/api/ai/essays/${essayId}/evaluation`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ content, prompt }),
-        }).then(() => setAnalysisProgress((prev) => ({ ...prev, evaluation: true }))),
+        })
+          .then(res => res.json())
+          .then(evaluation => {
+            setAnalysisProgress((prev) => ({ ...prev, evaluation: true }));
+            return evaluation;
+          }),
 
         fetch(`/api/ai/essays/${essayId}/takeaways`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ content, prompt }),
-        }).then(() => setAnalysisProgress((prev) => ({ ...prev, takeaways: true }))),
+        })
+          .then(res => res.json())
+          .then(takeaways => {
+            setAnalysisProgress((prev) => ({ ...prev, takeaways: true }));
+            return takeaways;
+          }),
       ];
 
-      await Promise.all(analysisPromises);
+      const [feedback, evaluation, takeaways] = await Promise.all(analysisPromises);
 
-      // await fetch(`/api/essays/${essayId}`, {
-      //   method: "PATCH",
-      //   headers: {
-      //     "Content-Type": "application/json",
-      //     Authorization: `Bearer ${token}`,
-      //   },
-      //   body: JSON.stringify({
-      //     email: user.email,
-      //     status: "Feedback Ready",
-      //   }),
-      // });
+      // Store the feedback in Firebase
+      await fetch(`/api/ai/essays/store`, {
+        method: "PATCH",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({
+          email: user.email,
+          essayId,
+          feedback,
+          evaluation,
+          takeaways,
+          status: "Feedback Ready",
+        }),
+      });
 
       toast({
         title: "Essay analyzed",

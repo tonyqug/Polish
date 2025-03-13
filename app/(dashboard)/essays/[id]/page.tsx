@@ -10,6 +10,8 @@ import { ArrowLeft } from "lucide-react"
 import { FeedbackView } from "@/components/feedback-view"
 import { FeedbackReport } from "@/components/feedback-report"
 import { Skeleton } from "@/components/ui/skeleton"
+import { useAuth } from "@/components/auth-provider"
+import { useToast } from "@/hooks/use-toast"
 
 interface Essay {
   id: string
@@ -19,15 +21,81 @@ interface Essay {
   content: string
   lastUpdated: string
   status: string
+  feedback?: {
+    comments: Array<{
+      text: string
+      type: string
+      range?: { start: number; end: number }
+    }>
+    summary: string
+  }
+  evaluation?: {
+    dimensions: Array<{
+      name: string
+      score: number
+      feedback: string
+    }>
+    overallScore: number
+    summary: string
+  }
+  takeaways?: {
+    keyPoints: string[]
+    strengths: string[]
+    improvements: string[]
+    summary: string
+  }
 }
 
 export default function EssayPage({ params }: { params: { id: string } }) {
-
+  const { user } = useAuth()
+  const { toast } = useToast()
   const [activeTab, setActiveTab] = useState("feedback")
   const [essay, setEssay] = useState<Essay | null>(null)
   const [isLoading, setIsLoading] = useState(true)
 
-  
+  useEffect(() => {
+    async function fetchEssay() {
+      if (!user?.email) return
+
+      try {
+        const response = await fetch(`/api/ai/essays/all?email=${encodeURIComponent(user.email)}`, {
+          headers: {
+            "Content-Type": "application/json",
+          },
+        })
+
+        if (!response.ok) {
+          throw new Error("Failed to fetch essay")
+        }
+
+        const essays = await response.json()
+        console.log(essays)
+        const currentEssay = essays.essays.find((e: Essay) => e.id === params.id)
+
+        if (!currentEssay) {
+          toast({
+            title: "Essay not found",
+            description: "The essay you're looking for doesn't exist or you don't have permission to view it.",
+            variant: "destructive",
+          })
+          return
+        }
+
+        setEssay(currentEssay)
+      } catch (error) {
+        console.error("Error fetching essay:", error)
+        toast({
+          title: "Error",
+          description: "Failed to fetch essay. Please try again.",
+          variant: "destructive",
+        })
+      } finally {
+        setIsLoading(false)
+      }
+    }
+
+    fetchEssay()
+  }, [user?.email, params.id, toast])
 
   if (isLoading) {
     return (
@@ -122,10 +190,10 @@ export default function EssayPage({ params }: { params: { id: string } }) {
             <TabsTrigger value="report">Report</TabsTrigger>
           </TabsList>
           <TabsContent value="feedback" className="mt-6">
-            <FeedbackView essay={essay} />
+            <FeedbackView essayId={essay.id} />
           </TabsContent>
           <TabsContent value="report" className="mt-6">
-            <FeedbackReport essayId={essay.id} essay={essay} />
+            <FeedbackReport essayId={essay.id} />
           </TabsContent>
         </Tabs>
       </div>

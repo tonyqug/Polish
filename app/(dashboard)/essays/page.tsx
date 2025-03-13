@@ -1,14 +1,101 @@
+"use client"
+
+import { useState, useEffect } from "react"
 import Link from "next/link"
 import { Button } from "@/components/ui/button"
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
+import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
-import { Plus } from "lucide-react"
+import { Plus, FileText } from "lucide-react"
+import { useAuth } from "@/components/auth-provider"
+import { useToast } from "@/hooks/use-toast"
+import { Skeleton } from "@/components/ui/skeleton"
+
+interface Essay {
+  id: string
+  title: string
+  type: string
+  status: string
+  lastUpdated: string
+}
+
+interface PaginationData {
+  total: number
+  pages: number
+  currentPage: number
+  limit: number
+}
 
 export default function EssaysPage() {
-  return (
-    <div className="container py-10">
-      <div className="flex flex-col gap-6">
-        <div className="flex items-center justify-between">
+  const { user } = useAuth()
+  const { toast } = useToast()
+  const [essays, setEssays] = useState<Essay[]>([])
+  const [isLoading, setIsLoading] = useState(true)
+  const [pagination, setPagination] = useState<PaginationData>({
+    total: 0,
+    pages: 1,
+    currentPage: 1,
+    limit: 10,
+  })
+
+  useEffect(() => {
+    async function fetchEssays() {
+      if (!user?.email) return
+      console.log("fetching essays")
+      try {
+        const response = await fetch(
+          `/api/ai/essays/all?email=${encodeURIComponent(user.email)}&page=${pagination.currentPage}&limit=${pagination.limit}`
+        )
+
+        if (!response.ok) {
+          throw new Error("Failed to fetch essays")
+        }
+
+        const data = await response.json()
+        console.log(data)
+        setEssays(data.essays)
+        setPagination(data.pagination)
+      } catch (error) {
+        console.error("Error fetching essays:", error)
+        toast({
+          title: "Error",
+          description: "Failed to fetch essays. Please try again.",
+          variant: "destructive",
+        })
+      } finally {
+        setIsLoading(false)
+      }
+    }
+
+    fetchEssays()
+  }, [user?.email, pagination.currentPage, toast])
+
+  const LoadingSkeleton = () => (
+    <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
+      {[...Array(6)].map((_, i) => (
+        <Card key={i} className="overflow-hidden">
+          <CardHeader className="space-y-2">
+            <Skeleton className="h-6 w-3/4" />
+            <div className="flex gap-2">
+              <Skeleton className="h-5 w-20" />
+              <Skeleton className="h-5 w-24" />
+            </div>
+          </CardHeader>
+          <CardContent>
+            <Skeleton className="h-4 w-full mb-2" />
+            <Skeleton className="h-4 w-2/3" />
+          </CardContent>
+          <CardFooter>
+            <Skeleton className="h-4 w-32" />
+          </CardFooter>
+        </Card>
+      ))}
+    </div>
+  )
+
+  if (isLoading) {
+    return (
+      <div className="container py-10">
+        <div className="flex items-center justify-between mb-8">
           <h1 className="text-3xl font-bold tracking-tight">My Essays</h1>
           <Button asChild>
             <Link href="/essays/new">
@@ -17,61 +104,84 @@ export default function EssaysPage() {
             </Link>
           </Button>
         </div>
+        <LoadingSkeleton />
+      </div>
+    )
+  }
 
-        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+  return (
+    <div className="container py-10">
+      <div className="flex items-center justify-between mb-8">
+        <h1 className="text-3xl font-bold tracking-tight">My Essays</h1>
+        <Button asChild>
+          <Link href="/essays/new">
+            <Plus className="mr-2 h-4 w-4" />
+            New Essay
+          </Link>
+        </Button>
+      </div>
+
+      {essays.length === 0 ? (
+        <Card className="flex flex-col items-center justify-center p-10 text-center">
+          <FileText className="h-10 w-10 text-muted-foreground mb-4" />
+          <CardTitle className="text-xl mb-2">No essays yet</CardTitle>
+          <p className="text-muted-foreground mb-4">
+            Get started by creating your first essay for analysis.
+          </p>
+          <Button asChild>
+            <Link href="/essays/new">Create Essay</Link>
+          </Button>
+        </Card>
+      ) : (
+        <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
           {essays.map((essay) => (
-            <Card key={essay.id}>
-              <CardHeader>
-                <CardTitle>{essay.title}</CardTitle>
-                <CardDescription>Last updated: {essay.lastUpdated}</CardDescription>
-              </CardHeader>
-              <CardContent>
-                <div className="flex items-center gap-2 mb-4">
-                  <Badge variant={essay.status === "Feedback Ready" ? "default" : "outline"}>{essay.status}</Badge>
-                  <Badge variant="outline">{essay.type}</Badge>
-                </div>
-                <p className="line-clamp-3 text-sm text-muted-foreground">{essay.excerpt}</p>
-              </CardContent>
-              <CardFooter>
-                <Button asChild variant="outline" className="w-full">
-                  <Link href={`/essays/${essay.id}`}>View Essay</Link>
-                </Button>
-              </CardFooter>
-            </Card>
+            <Link key={essay.id} href={`/essays/${essay.id}`}>
+              <Card className="hover:bg-muted/50 transition-colors">
+                <CardHeader>
+                  <CardTitle className="line-clamp-2">{essay.title}</CardTitle>
+                  <div className="flex gap-2">
+                    <Badge variant="outline">{essay.type}</Badge>
+                    <Badge
+                      variant={essay.status === "Feedback Ready" ? "default" : "secondary"}
+                    >
+                      {essay.status}
+                    </Badge>
+                  </div>
+                </CardHeader>
+                <CardFooter>
+                  <p className="text-sm text-muted-foreground">
+                    Last updated: {new Date(essay.lastUpdated).toLocaleDateString()}
+                  </p>
+                </CardFooter>
+              </Card>
+            </Link>
           ))}
         </div>
-      </div>
+      )}
+
+      {pagination.pages > 1 && (
+        <div className="flex justify-center gap-2 mt-8">
+          <Button
+            variant="outline"
+            disabled={pagination.currentPage === 1}
+            onClick={() =>
+              setPagination((prev) => ({ ...prev, currentPage: prev.currentPage - 1 }))
+            }
+          >
+            Previous
+          </Button>
+          <Button
+            variant="outline"
+            disabled={pagination.currentPage === pagination.pages}
+            onClick={() =>
+              setPagination((prev) => ({ ...prev, currentPage: prev.currentPage + 1 }))
+            }
+          >
+            Next
+          </Button>
+        </div>
+      )}
     </div>
   )
 }
-
-const essays = [
-  {
-    id: "1",
-    title: "Why Stanford?",
-    type: "Why This School",
-    status: "Feedback Ready",
-    lastUpdated: "2 days ago",
-    excerpt:
-      "Stanford University has been my dream school since I first learned about its pioneering research and innovative spirit. The university's commitment to interdisciplinary education perfectly aligns with my academic goals...",
-  },
-  {
-    id: "2",
-    title: "Overcoming Challenges",
-    type: "Personal Statement",
-    status: "In Progress",
-    lastUpdated: "1 week ago",
-    excerpt:
-      "When I broke my leg during the championship game, I thought my basketball career was over. However, this setback taught me resilience and the importance of adapting to unexpected circumstances...",
-  },
-  {
-    id: "3",
-    title: "Community Impact",
-    type: "Extracurricular Activity",
-    status: "Feedback Ready",
-    lastUpdated: "2 weeks ago",
-    excerpt:
-      "Starting a coding club at my local community center allowed me to share my passion for technology while addressing the digital divide in my neighborhood...",
-  },
-]
 

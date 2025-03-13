@@ -1,53 +1,46 @@
-"use client"
+"use client";
 
-import { useState, useEffect } from "react"
-import { Card, CardContent } from "@/components/ui/card"
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
-import { Info } from "lucide-react"
-import { Skeleton } from "@/components/ui/skeleton"
+import { useState, useEffect } from "react";
+import { Card, CardContent } from "@/components/ui/card";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import { Info } from "lucide-react";
+import { Skeleton } from "@/components/ui/skeleton";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { useAuth } from "@/components/auth-provider"
 
 interface FeedbackViewProps {
-  essay: {
-    id: string
-    title: string
-    content: string
-    prompt: string
-  }
+  essayId: string;
 }
 
 interface Feedback {
-  text: string
-  comment: string
-  type: "strength" | "improvement" | "suggestion"
-  startIndex: number
-  endIndex: number
+  text: string;
+  comment: string;
+  type: "strength" | "improvement" | "suggestion";
+  startIndex: number;
+  endIndex: number;
 }
 
-export function FeedbackView({ essay }: FeedbackViewProps) {
+export function FeedbackView({ essayId }: FeedbackViewProps) {
+  const { user } = useAuth()
   const [feedback, setFeedback] = useState<Feedback[]>([])
-  const [selectedFeedback, setSelectedFeedback] = useState<Feedback | null>(null)
-  const [isLoading, setIsLoading] = useState(true)
+  const [selectedFeedback, setSelectedFeedback] = useState<Feedback | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const [popoverOpen, setPopoverOpen] = useState<number | null>(null); // Track which popover is open
+  const [essay, setEssay] = useState<any>({});
 
   useEffect(() => {
     async function getFeedback() {
+      if (!user || !user.email) return
       try {
-        const response = await fetch(`/api/ai/essays/${essay.id}/feedback`, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-            content: essay.content,
-            prompt: essay.prompt,
-          }),
-        });
-
-        if (!response.ok) {
-          throw new Error('Failed to fetch feedback');
-        }
+        const response = await fetch(`/api/ai/essays/all?email=${encodeURIComponent(user?.email)}`);
+        if (!response.ok) throw new Error("Failed to fetch essays");
 
         const data = await response.json();
-        setFeedback(data.highlights);
+        const essay = data.essays.find((e: any) => e.id === essayId);
+        if (!essay) throw new Error("Essay not found");
+        console.log(essay)
+        setFeedback(essay.feedback.highlights);
+        setEssay(essay)
       } catch (error) {
         console.error('Error fetching feedback:', error);
       } finally {
@@ -58,26 +51,74 @@ export function FeedbackView({ essay }: FeedbackViewProps) {
     getFeedback();
   }, [essay.id, essay.content, essay.prompt]);
 
-  // Parse the HTML content and inject the feedback highlights
+  const handleMouseEnter = (index: number) => {
+    const feedbackItem = feedback.find(f => f.startIndex === index);
+    setSelectedFeedback(feedbackItem || null);
+    setPopoverOpen(index); // Open the specific popover
+  };
+
+  const handleMouseLeave = () => {
+    setSelectedFeedback(null);
+    setPopoverOpen(null); // Close all popovers
+  };
+
+
   const contentWithHighlights = () => {
     if (isLoading) return essay.content;
 
     let content = essay.content;
-    feedback.forEach((item) => {
+    let lastIndex = 0;
+    const highlightedContent: any[] = [];
+
+    const sortedFeedback = [...feedback].sort((a, b) => a.startIndex - b.startIndex);
+
+    sortedFeedback.forEach((item) => {
+      if (item.startIndex > lastIndex) {
+        highlightedContent.push(content.substring(lastIndex, item.startIndex));
+      }
+
       const textToHighlight = content.slice(item.startIndex, item.endIndex);
-      const escapedText = textToHighlight.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-      const regex = new RegExp(`(${escapedText})`, "g");
-      content = content.replace(
-        regex,
-        `<span 
-          class="highlight-${item.type}" 
-          data-feedback-index="${item.startIndex}"
-          ${selectedFeedback?.startIndex === item.startIndex ? 'style="background-color: var(--primary); color: var(--primary-foreground);"' : ""}
-        >$1</span>`
+
+      highlightedContent.push(
+        <Popover key={item.startIndex} open={popoverOpen === item.startIndex} onOpenChange={(isOpen) => {
+            if (!isOpen) {
+                setPopoverOpen(null)
+            }
+        }}>
+          <PopoverTrigger asChild>
+            <span
+              className={`highlight-${item.type}`}
+              style={{
+                backgroundColor: item.type === 'strength' ? 'rgba(0, 255, 0, 0.3)' : item.type === 'improvement' ? 'rgba(255, 255, 0, 0.5)' : 'rgba(255, 165, 0, 0.5)',
+                padding: '2px 4px',
+                borderRadius: '4px',
+                cursor: 'pointer',
+              }}
+              data-feedback-index={item.startIndex}
+              onMouseEnter={() => handleMouseEnter(item.startIndex)}
+              onMouseLeave={handleMouseLeave}
+            >
+              {textToHighlight}
+            </span>
+          </PopoverTrigger>
+          <PopoverContent className="w-80" align="start">
+            <div className="grid gap-1">
+              <div className="text-sm font-medium">{item.text}</div>
+              <div className="text-xs text-muted-foreground">{item.comment}</div>
+              <div className="text-xs">Type: {item.type}</div>
+            </div>
+          </PopoverContent>
+        </Popover>
       );
+
+      lastIndex = item.endIndex;
     });
 
-    return content;
+    if (lastIndex < content.length) {
+      highlightedContent.push(content.substring(lastIndex));
+    }
+
+    return highlightedContent;
   };
 
   if (isLoading) {
@@ -99,23 +140,11 @@ export function FeedbackView({ essay }: FeedbackViewProps) {
 
   return (
     <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-      <Card>
+      <Card className = "h-[600px]">
         <CardContent className="p-6">
-          <div
-            className="prose prose-sm max-w-none dark:prose-invert"
-            dangerouslySetInnerHTML={{
-              __html: contentWithHighlights(),
-            }}
-            onClick={(e) => {
-              const target = e.target as HTMLElement;
-              const feedbackIndex = target.getAttribute("data-feedback-index");
-              if (feedbackIndex) {
-                const index = parseInt(feedbackIndex);
-                const feedbackItem = feedback.find(f => f.startIndex === index);
-                setSelectedFeedback(selectedFeedback?.startIndex === index ? null : feedbackItem || null);
-              }
-            }}
-          />
+          <div className="prose prose-sm max-w-none dark:prose-invert">
+            {contentWithHighlights()}
+          </div>
         </CardContent>
       </Card>
 
@@ -130,7 +159,7 @@ export function FeedbackView({ essay }: FeedbackViewProps) {
                 </TooltipTrigger>
                 <TooltipContent>
                   <p className="max-w-xs">
-                    Click on highlighted text in your essay to see specific feedback. Green = Strength, Yellow = Needs
+                    Hover over highlighted text in your essay to see specific feedback. Green = Strength, Yellow = Needs
                     improvement, Orange = Suggestion for enhancement.
                   </p>
                 </TooltipContent>
@@ -148,7 +177,7 @@ export function FeedbackView({ essay }: FeedbackViewProps) {
               </div>
             ) : (
               <div className="rounded-lg border border-dashed p-4 text-center text-muted-foreground">
-                <p>Click on highlighted text to see specific feedback</p>
+                <p>Hover over highlighted text to see specific feedback</p>
               </div>
             )}
 
@@ -156,15 +185,15 @@ export function FeedbackView({ essay }: FeedbackViewProps) {
               <h4 className="text-sm font-semibold mb-2">Feedback Legend</h4>
               <div className="space-y-2 text-sm">
                 <div className="flex items-center gap-2">
-                  <div className="h-3 w-3 rounded-full bg-green-100 dark:bg-green-950/30"></div>
+                  <div className="h-3 w-3 rounded-full bg-green-500"></div>
                   <span>Strength</span>
                 </div>
                 <div className="flex items-center gap-2">
-                  <div className="h-3 w-3 rounded-full bg-yellow-100 dark:bg-yellow-950/30"></div>
+                  <div className="h-3 w-3 rounded-full bg-yellow-500"></div>
                   <span>Needs improvement</span>
                 </div>
                 <div className="flex items-center gap-2">
-                  <div className="h-3 w-3 rounded-full bg-orange-100 dark:bg-orange-950/30"></div>
+                  <div className="h-3 w-3 rounded-full bg-orange-500"></div>
                   <span>Suggestion</span>
                 </div>
               </div>
@@ -173,6 +202,5 @@ export function FeedbackView({ essay }: FeedbackViewProps) {
         </CardContent>
       </Card>
     </div>
-  )
+  );
 }
-
