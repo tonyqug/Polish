@@ -1,7 +1,6 @@
 "use client"
 
 import { useState, useEffect } from "react"
-import { useSession } from "next-auth/react"
 import Link from "next/link"
 import { Button } from "@/components/ui/button"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
@@ -23,31 +22,12 @@ interface Essay {
 }
 
 export default function EssayPage({ params }: { params: { id: string } }) {
-  const { data: session } = useSession()
+
   const [activeTab, setActiveTab] = useState("feedback")
   const [essay, setEssay] = useState<Essay | null>(null)
   const [isLoading, setIsLoading] = useState(true)
 
-  useEffect(() => {
-    async function fetchEssay() {
-      if (!session?.user?.email) return;
-
-      try {
-        const response = await fetch(`/api/essays/${params.id}?email=${encodeURIComponent(session.user.email)}`);
-        if (!response.ok) {
-          throw new Error('Failed to fetch essay');
-        }
-        const data = await response.json();
-        setEssay(data);
-      } catch (error) {
-        console.error('Error fetching essay:', error);
-      } finally {
-        setIsLoading(false);
-      }
-    }
-
-    fetchEssay();
-  }, [params.id, session?.user?.email]);
+  
 
   if (isLoading) {
     return (

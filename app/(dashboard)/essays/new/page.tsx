@@ -61,7 +61,7 @@ export default function NewEssayPage() {
     try {
       const token = await auth.currentUser?.getIdToken();
       
-      const createResponse = await fetch("/api/essays/upload", {
+      const createResponse = await fetch("/api/ai/essays/store", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -104,17 +104,17 @@ export default function NewEssayPage() {
 
       await Promise.all(analysisPromises);
 
-      await fetch(`/api/essays/${essayId}`, {
-        method: "PATCH",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify({
-          email: user.email,
-          status: "Feedback Ready",
-        }),
-      });
+      // await fetch(`/api/essays/${essayId}`, {
+      //   method: "PATCH",
+      //   headers: {
+      //     "Content-Type": "application/json",
+      //     Authorization: `Bearer ${token}`,
+      //   },
+      //   body: JSON.stringify({
+      //     email: user.email,
+      //     status: "Feedback Ready",
+      //   }),
+      // });
 
       toast({
         title: "Essay analyzed",

@@ -1,6 +1,6 @@
 "use client";
 
-import { SessionProvider } from "next-auth/react";
+
 import { ReactNode, createContext, useContext, useEffect, useState } from "react";
 import { auth } from "../lib/firebase"; // Import Firebase auth (frontend)
 import { onAuthStateChanged, User as FirebaseUser } from "firebase/auth";
@@ -67,10 +67,10 @@ export default function AuthProvider({ children }: { children: ReactNode }) {
   }, []); // Empty dependency array means this effect runs only once (when the component mounts)
 
   return (
-    <SessionProvider>
+    
       <AuthContext.Provider value={{ user, setUser }}>
         {children}
       </AuthContext.Provider>
-    </SessionProvider>
+  
   );
 }
